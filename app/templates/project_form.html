@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}{% if project %}Editar{% else %}Nuevo{% endif %} proyecto — DocuFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="mb-6">
+    <a href="/" class="text-sm text-gray-500 hover:text-brand-600 transition-colors">← Proyectos</a>
+    <h1 class="text-2xl font-bold text-gray-900 mt-2">
+      {% if project %}Editar proyecto{% else %}Nuevo proyecto{% endif %}
+    </h1>
+  </div>
+
+  <form
+    method="POST"
+    action="{% if project %}/projects/{{ project.id }}/edit{% else %}/projects{% endif %}"
+    class="bg-white border border-gray-200 rounded-xl p-6 space-y-5"
+    x-data="projectForm()"
+  >
+
+    <!-- Nombre -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del proyecto <span class="text-red-500">*</span></label>
+      <input type="text" name="name" required
+        value="{{ project.name if project else '' }}"
+        placeholder="Ej: Plugin Moodle Certificados"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+    </div>
+
+    <!-- Ruta del proyecto -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Ruta del proyecto <span class="text-red-500">*</span></label>
+      <div class="flex gap-2">
+        <input type="text" name="path" required x-model="path"
+          value="{{ project.path if project else '' }}"
+          placeholder="/home/usuario/mi-plugin"
+          class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <button type="button" @click="checkPath()"
+          class="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:border-brand-500 hover:text-brand-600 transition-colors flex items-center gap-1">
+          <svg x-show="checkingPath" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+          </svg>
+          <span x-show="!checkingPath">Verificar</span>
+        </button>
+      </div>
+      <p x-show="pathOk === true" class="text-xs text-emerald-600 mt-1">Ruta válida</p>
+      <p x-show="pathOk === false" class="text-xs text-red-500 mt-1">Ruta no encontrada</p>
+    </div>
+
+    <!-- Plantilla -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Plantilla</label>
+      <select name="template_id"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <option value="">Sin plantilla</option>
+        {% for tmpl in templates %}
+        <option value="{{ tmpl.id }}"
+          {% if project and project.template_id == tmpl.id %}selected{% endif %}>
+          {{ tmpl.name }} ({{ tmpl.type|upper }} · {{ tmpl.sections|length }} secciones)
+        </option>
+        {% endfor %}
+      </select>
+      {% if not templates %}
+      <p class="text-xs text-amber-500 mt-1">
+        No hay plantillas. <a href="/templates" class="underline">Sube una primero.</a>
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- Proveedor IA -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Proveedor IA</label>
+        <select name="ai_provider" x-model="provider"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <option value="claude" {% if not project or project.ai_provider == 'claude' %}selected{% endif %}>Claude (Anthropic)</option>
+          <option value="gemini" {% if project and project.ai_provider == 'gemini' %}selected{% endif %}>Gemini (Google)</option>
+          <option value="groq" {% if project and project.ai_provider == 'groq' %}selected{% endif %}>Groq (gratis)</option>
+          <option value="ollama" {% if project and project.ai_provider == 'ollama' %}selected{% endif %}>Ollama (local)</option>
+          <option value="claude_code" {% if project and project.ai_provider == 'claude_code' %}selected{% endif %}>Claude Code (suscripción)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+        <select name="ai_model"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <template x-if="provider === 'claude'">
+            <template x-for="m in claudeModels">
+              <option :value="m" :selected="m === '{{ project.ai_model if project else 'claude-sonnet-4-5' }}'">
+                <span x-text="m"></span>
+              </option>
+            </template>
+          </template>
+          <template x-if="provider === 'gemini'">
+            <template x-for="m in geminiModels">
+              <option :value="m" :selected="m === '{{ project.ai_model if project else '' }}'">
+                <span x-text="m"></span>
+              </option>
+            </template>
+          </template>
+          <template x-if="provider === 'groq'">
+            <template x-for="m in groqModels">
+              <option :value="m" :selected="m === '{{ project.ai_model if project else '' }}'">
+                <span x-text="m"></span>
+              </option>
+            </template>
+          </template>
+          <template x-if="provider === 'ollama'">
+            <template x-for="m in ollamaModels">
+              <option :value="m" :selected="m === '{{ project.ai_model if project else '' }}'">
+                <span x-text="m"></span>
+              </option>
+            </template>
+          </template>
+          <template x-if="provider === 'claude_code'">
+            <template x-for="m in claudeCodeModels">
+              <option :value="m" :selected="m === '{{ project.ai_model if project else '' }}'">
+                <span x-text="m"></span>
+              </option>
+            </template>
+          </template>
+        </select>
+      </div>
+    </div>
+
+    <!-- Extensiones -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Extensiones de fichero a leer</label>
+      <input type="text" name="extensions"
+        value="{{ project.extensions|join(',') if project else 'php,js,ts,json' }}"
+        placeholder="php,js,ts,json"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+      <p class="text-xs text-gray-400 mt-1">Separadas por comas. Ej: php,js,ts,json</p>
+    </div>
+
+    <!-- Descripción -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Descripción adicional <span class="text-gray-400">(opcional)</span></label>
+      <textarea name="description" rows="3"
+        placeholder="Información extra sobre el proyecto que ayude al AI a contextualizar mejor..."
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none">{{ project.description if project else '' }}</textarea>
+    </div>
+
+    <!-- Acciones -->
+    <div class="flex items-center justify-between pt-2">
+      <a href="/" class="text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancelar</a>
+      <button type="submit"
+        class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors">
+        {% if project %}Guardar cambios{% else %}Crear proyecto{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function projectForm() {
+  return {
+    path: '{{ project.path if project else "" }}',
+    provider: '{{ project.ai_provider if project else "claude" }}',
+    claudeModels: {{ claude_models | tojson }},
+    geminiModels: {{ gemini_models | tojson }},
+    groqModels: {{ groq_models | tojson }},
+    ollamaModels: {{ ollama_models | tojson }},
+    claudeCodeModels: {{ claude_code_models | tojson }},
+    checkingPath: false,
+    pathOk: null,
+    async checkPath() {
+      if (!this.path) return;
+      this.checkingPath = true;
+      const res = await fetch('/check-path?path=' + encodeURIComponent(this.path));
+      const data = await res.json();
+      this.pathOk = data.ok;
+      this.checkingPath = false;
+    }
+  }
+}
+</script>
+{% endblock %}

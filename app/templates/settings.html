@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Configuración — DocuFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <h1 class="text-2xl font-bold text-gray-900 mb-6">Configuración</h1>
+
+  <div class="bg-white border border-gray-200 rounded-xl p-6" x-data="settingsForm()">
+    <h2 class="font-semibold text-gray-800 mb-4">API Keys</h2>
+    <p class="text-sm text-gray-500 mb-5">
+      Las API keys se guardan localmente en el servidor. Nunca se envían a terceros excepto al proveedor de IA correspondiente.
+    </p>
+
+    <!-- Claude -->
+    <div class="mb-4">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium text-gray-700">API Key de Claude (Anthropic)</label>
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          Obtener API key
+        </a>
+      </div>
+      <input type="password" x-model="claudeKey"
+        placeholder="{% if settings.claude_api_key %}••••••••••••••••{% else %}sk-ant-...{% endif %}"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+      {% if settings.claude_api_key %}
+      <p class="text-xs text-emerald-600 mt-1">API key configurada</p>
+      {% endif %}
+    </div>
+
+    <!-- Gemini -->
+    <div class="mb-4">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium text-gray-700">API Key de Gemini (Google)</label>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          Obtener API key
+        </a>
+      </div>
+      <input type="password" x-model="geminiKey"
+        placeholder="{% if settings.gemini_api_key %}••••••••••••••••{% else %}AIza...{% endif %}"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+      {% if settings.gemini_api_key %}
+      <p class="text-xs text-emerald-600 mt-1">API key configurada</p>
+      {% endif %}
+    </div>
+
+    <!-- Groq -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-sm font-medium text-gray-700">API Key de Groq</label>
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          Obtener API key
+        </a>
+      </div>
+      <input type="password" x-model="groqKey"
+        placeholder="{% if settings.groq_api_key %}••••••••••••••••{% else %}gsk_...{% endif %}"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+      {% if settings.groq_api_key %}
+      <p class="text-xs text-emerald-600 mt-1">API key configurada</p>
+      {% endif %}
+    </div>
+
+    <hr class="border-gray-100 mb-5">
+
+    <!-- Ollama -->
+    <h2 class="font-semibold text-gray-800 mb-1">Ollama <span class="text-xs font-normal text-gray-400">(local, sin coste)</span></h2>
+    <p class="text-sm text-gray-500 mb-4">No necesita API key. Indica la URL donde corre Ollama.</p>
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700 mb-1">URL de Ollama</label>
+      <input type="text" x-model="ollamaUrl"
+        placeholder="http://localhost:11434"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+      <p class="text-xs text-gray-400 mt-1">Por defecto: http://localhost:11434</p>
+    </div>
+
+    <button @click="save()" :disabled="saving"
+      class="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+      <svg x-show="saving" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      <span x-text="saving ? 'Guardando...' : 'Guardar'"></span>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function settingsForm() {
+  return {
+    claudeKey: '',
+    geminiKey: '',
+    groqKey: '',
+    ollamaUrl: '{{ settings.ollama_url | default("") }}',
+    saving: false,
+    async save() {
+      this.saving = true;
+      const fd = new FormData();
+      fd.append('claude_api_key', this.claudeKey);
+      fd.append('gemini_api_key', this.geminiKey);
+      fd.append('groq_api_key', this.groqKey);
+      fd.append('ollama_url', this.ollamaUrl);
+      const data = await apiCall('/settings', 'POST', fd);
+      if (data.ok) showToast('Configuración guardada');
+      else showToast('Error al guardar', 'error');
+      this.saving = false;
+    }
+  }
+}
+</script>
+{% endblock %}

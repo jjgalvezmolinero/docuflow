@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Plantillas — DocuFlow{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Plantillas</h1>
+    <p class="text-sm text-gray-500 mt-1">Sube plantillas .docx o .odt. DocuFlow extraerá las secciones automáticamente.</p>
+  </div>
+</div>
+
+<!-- Upload -->
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6" x-data="uploadForm()">
+  <h2 class="font-semibold text-gray-800 mb-4">Subir nueva plantilla</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+      <input type="text" x-model="name" placeholder="Ej: Plantilla técnica v2"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Fichero (.docx / .odt)</label>
+      <input type="file" accept=".docx,.odt" x-ref="fileInput" @change="fileSelected($event)"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+    </div>
+    <div class="flex items-end">
+      <button @click="upload()" :disabled="loading || !name || !file"
+        class="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+        <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+        <span x-text="loading ? 'Subiendo...' : 'Subir plantilla'"></span>
+      </button>
+    </div>
+  </div>
+  <p x-show="result" x-text="result" class="mt-3 text-sm text-emerald-600"></p>
+  <p x-show="error" x-text="error" class="mt-3 text-sm text-red-600"></p>
+</div>
+
+<!-- Lista -->
+{% if templates %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {% for tmpl in templates %}
+  <div class="bg-white border border-gray-200 rounded-xl p-5" x-data="{}">
+    <div class="flex items-start justify-between mb-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center
+          {% if tmpl.type == 'docx' %}bg-blue-100{% else %}bg-orange-100{% endif %}">
+          <svg class="w-5 h-5 {% if tmpl.type == 'docx' %}text-blue-600{% else %}text-orange-600{% endif %}"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900 text-sm">{{ tmpl.name }}</h3>
+          <span class="text-xs text-gray-400 uppercase">{{ tmpl.type }}</span>
+        </div>
+      </div>
+      <button
+        @click="if(confirm('¿Eliminar esta plantilla?')) { fetch('/templates/{{ tmpl.id }}/delete', {method:'POST'}).then(() => location.reload()) }"
+        class="text-gray-400 hover:text-red-500 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    {% if tmpl.sections %}
+    <div class="mt-2">
+      <p class="text-xs font-medium text-gray-500 mb-1">Secciones detectadas ({{ tmpl.sections|length }})</p>
+      <ul class="space-y-0.5">
+        {% for section in tmpl.sections[:5] %}
+        <li class="text-xs text-gray-600 flex items-center gap-1">
+          <span class="w-1 h-1 rounded-full bg-brand-400 flex-shrink-0"></span>
+          {{ section }}
+        </li>
+        {% endfor %}
+        {% if tmpl.sections|length > 5 %}
+        <li class="text-xs text-gray-400">+ {{ tmpl.sections|length - 5 }} más</li>
+        {% endif %}
+      </ul>
+    </div>
+    {% else %}
+    <p class="text-xs text-amber-500 mt-2">No se detectaron secciones (Heading 1)</p>
+    {% endif %}
+
+    <p class="text-xs text-gray-400 mt-3">{{ tmpl.created_at[:10] }}</p>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="text-center py-16 text-gray-500">
+  <p class="text-sm">No hay plantillas. Sube una para empezar.</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function uploadForm() {
+  return {
+    name: '',
+    file: null,
+    loading: false,
+    result: '',
+    error: '',
+    fileSelected(e) { this.file = e.target.files[0] || null; },
+    async upload() {
+      this.loading = true; this.result = ''; this.error = '';
+      const fd = new FormData();
+      fd.append('name', this.name);
+      fd.append('file', this.file);
+      try {
+        const res = await fetch('/templates/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.ok) {
+          this.result = `Plantilla subida. ${data.sections.length} secciones detectadas.`;
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          this.error = data.error || 'Error desconocido';
+        }
+      } catch(e) {
+        this.error = 'Error de red';
+      }
+      this.loading = false;
+    }
+  }
+}
+</script>
+{% endblock %}

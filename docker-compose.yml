@@ -1,0 +1,14 @@
+services:
+  docuflow:
+    build: .
+    ports:
+      - "9100:9100"
+    volumes:
+      - ./data:/data
+      - ./app:/app
+      - /home:/home        # acceso a proyectos locales del host
+      - /home/jjgalvez/.local/share/claude:/home/jjgalvez/.local/share/claude:ro  # binario claude
+      - /home/jjgalvez/.claude:/home/jjgalvez/.claude:ro                          # auth claude
+    environment:
+      - DATA_DIR=/data
+    restart: unless-stopped

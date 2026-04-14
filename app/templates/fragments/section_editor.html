@@ -1,0 +1,23 @@
+<!-- Fragmento HTMX: editor de sección individual -->
+<div class="space-y-2">
+  <textarea
+    name="content"
+    rows="10"
+    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500"
+  >{{ section.content }}</textarea>
+  <div class="flex justify-end gap-2">
+    <button
+      hx-post="/projects/{{ project.id }}/sections/{{ section.id }}/update"
+      hx-include="closest div"
+      hx-swap="none"
+      class="text-sm border border-gray-300 hover:border-gray-400 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+      Guardar
+    </button>
+    <button
+      hx-post="/projects/{{ project.id }}/sections/{{ section.id }}/approve"
+      hx-swap="none"
+      class="text-sm bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-lg transition-colors">
+      Aprobar
+    </button>
+  </div>
+</div>

@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — DocuFlow{% endblock %}
+
+{% block content %}
+<div x-data="projectPage('{{ project.id }}')">
+
+  <!-- Cabecera -->
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <a href="/" class="text-sm text-gray-500 hover:text-brand-600 transition-colors">← Proyectos</a>
+      <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ project.name }}</h1>
+      <p class="text-sm text-gray-500 mt-0.5">{{ project.path }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/projects/{{ project.id }}/edit"
+        class="text-sm border border-gray-300 hover:border-gray-400 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+        Editar
+      </a>
+      <button @click="deleteProject()"
+        class="text-sm border border-red-200 hover:border-red-400 text-red-500 px-3 py-1.5 rounded-lg transition-colors">
+        Eliminar
+      </button>
+    </div>
+  </div>
+
+  <!-- Info del proyecto -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <p class="text-xs text-gray-500 mb-1">Proveedor IA</p>
+      <p class="font-semibold text-gray-800">{{ project.ai_provider|capitalize }}</p>
+      <p class="text-xs text-gray-400">{{ project.ai_model }}</p>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <p class="text-xs text-gray-500 mb-1">Plantilla</p>
+      {% if template %}
+      <p class="font-semibold text-gray-800">{{ template.name }}</p>
+      <p class="text-xs text-gray-400">{{ template.sections|length }} secciones · {{ template.type|upper }}</p>
+      {% else %}
+      <p class="text-sm text-amber-500">Sin plantilla</p>
+      {% endif %}
+    </div>
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <p class="text-xs text-gray-500 mb-1">Extensiones leídas</p>
+      <p class="font-semibold text-gray-800">{{ project.extensions|join(', ') }}</p>
+    </div>
+  </div>
+
+  <!-- Sin plantilla -->
+  {% if not template %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center">
+    <p class="text-amber-700 text-sm font-medium mb-2">Este proyecto no tiene plantilla asignada</p>
+    <a href="/projects/{{ project.id }}/edit"
+      class="text-sm bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors">
+      Asignar plantilla
+    </a>
+  </div>
+
+  {% elif not document %}
+  <!-- Sin documento: análisis inicial -->
+  <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
+    <div class="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <svg class="w-8 h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.362.362a1 1 0 01-.707.293H9.414a1 1 0 01-.707-.293l-.362-.362z"/>
+      </svg>
+    </div>
+    <h2 class="text-lg font-semibold text-gray-800 mb-1">Listo para analizar</h2>
+    <p class="text-sm text-gray-500 mb-5">
+      DocuFlow leerá el código de tu proyecto y creará las secciones de documentación<br>
+      basándose en la plantilla <strong>{{ template.name }}</strong>.
+    </p>
+    <button @click="analyze()"
+      :disabled="analyzing"
+      class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-medium px-6 py-2.5 rounded-lg transition-colors">
+      <svg x-show="analyzing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      <span x-text="analyzing ? 'Analizando...' : 'Analizar proyecto'"></span>
+    </button>
+    <p x-show="analyzeError" x-text="analyzeError" class="mt-3 text-sm text-red-500"></p>
+  </div>
+
+  {% else %}
+  <!-- Documento con secciones -->
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-3">
+      <h2 class="text-lg font-semibold text-gray-800">Secciones del documento</h2>
+      <span class="text-sm text-gray-500">
+        {{ document.sections|selectattr('status', 'equalto', 'approved')|list|length }} /
+        {{ document.sections|length }} aprobadas
+      </span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button @click="generateAll()"
+        :disabled="generatingAll"
+        class="inline-flex items-center gap-1.5 text-sm border border-brand-300 text-brand-600 hover:bg-brand-50 disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors">
+        <svg x-show="generatingAll" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+        <span x-text="generatingAll ? 'Generando...' : 'Generar todo'"></span>
+      </button>
+      <!-- Exportar -->
+      <div class="relative" x-data="{ open: false }">
+        <button @click="open = !open"
+          class="inline-flex items-center gap-1.5 text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+          Exportar
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div x-show="open" @click.outside="open = false"
+          class="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10">
+          <a href="/projects/{{ project.id }}/export/docx"
+            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.docx)</a>
+          <a href="/projects/{{ project.id }}/export/odt"
+            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">LibreOffice (.odt)</a>
+          <a href="/projects/{{ project.id }}/export/pdf"
+            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progreso general -->
+  {% set approved = document.sections|selectattr('status', 'equalto', 'approved')|list|length %}
+  {% set total = document.sections|length %}
+  <div class="w-full bg-gray-200 rounded-full h-1.5 mb-5">
+    <div class="bg-brand-500 h-1.5 rounded-full transition-all"
+      style="width: {{ (approved / total * 100)|int if total > 0 else 0 }}%"></div>
+  </div>
+
+  <!-- Lista de secciones -->
+  <div class="space-y-3" id="sections-list">
+    {% for section in document.sections|sort(attribute='order') %}
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden"
+      x-data="sectionCard('{{ project.id }}', '{{ section.id }}', '{{ section.status }}')"
+      id="section-{{ section.id }}">
+
+      <!-- Cabecera de sección -->
+      <div class="flex items-center justify-between px-5 py-3 cursor-pointer" @click="expanded = !expanded">
+        <div class="flex items-center gap-3">
+          <!-- Status badge -->
+          <span class="w-2 h-2 rounded-full flex-shrink-0"
+            :class="{
+              'bg-gray-300': status === 'pending',
+              'bg-amber-400': status === 'generated',
+              'bg-emerald-500': status === 'approved'
+            }"></span>
+          <span class="font-medium text-gray-800 text-sm">{{ section.title }}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full"
+            :class="{
+              'bg-gray-100 text-gray-500': status === 'pending',
+              'bg-amber-100 text-amber-700': status === 'generated',
+              'bg-emerald-100 text-emerald-700': status === 'approved'
+            }"
+            x-text="{ pending: 'Pendiente', generated: 'Generado', approved: 'Aprobado' }[status]">
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click.stop="generate()"
+            :disabled="generating"
+            class="text-xs text-brand-600 hover:text-brand-700 disabled:opacity-40 flex items-center gap-1 px-2 py-1 rounded hover:bg-brand-50 transition-colors">
+            <svg x-show="generating" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <span x-text="generating ? 'Generando...' : (status === 'pending' ? 'Generar' : 'Regenerar')"></span>
+          </button>
+          <svg class="w-4 h-4 text-gray-400 transition-transform" :class="expanded ? 'rotate-180' : ''"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Contenido expandible -->
+      <div x-show="expanded" x-transition class="border-t border-gray-100">
+        {% if section.content %}
+        <div class="px-5 py-4">
+          <!-- Editor -->
+          <textarea
+            x-ref="editor"
+            rows="8"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >{{ section.content }}</textarea>
+          <div class="flex items-center justify-between mt-3">
+            <button @click="saveContent()"
+              class="text-sm text-gray-600 border border-gray-300 hover:border-gray-400 px-3 py-1.5 rounded-lg transition-colors">
+              Guardar cambios
+            </button>
+            <button @click="approve()" x-show="status !== 'approved'"
+              class="text-sm bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-lg transition-colors">
+              Aprobar sección
+            </button>
+            <span x-show="status === 'approved'" class="text-sm text-emerald-600 font-medium flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              Aprobada
+            </span>
+          </div>
+        </div>
+        {% else %}
+        <div class="px-5 py-6 text-center text-gray-400 text-sm">
+          Haz clic en "Generar" para crear el contenido de esta sección con IA
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function projectPage(projectId) {
+  return {
+    analyzing: false,
+    analyzeError: '',
+    generatingAll: false,
+    async analyze() {
+      this.analyzing = true;
+      this.analyzeError = '';
+      const data = await apiCall(`/projects/${projectId}/analyze`);
+      if (data.ok) {
+        showToast(`Proyecto analizado: ${data.files_read} ficheros, ${data.sections} secciones`);
+        setTimeout(() => location.reload(), 800);
+      } else {
+        this.analyzeError = data.error || 'Error al analizar';
+      }
+      this.analyzing = false;
+    },
+    async generateAll() {
+      this.generatingAll = true;
+      const data = await apiCall(`/projects/${projectId}/sections/generate-all`);
+      if (data.ok) {
+        showToast(`${data.generated} secciones generadas`);
+        setTimeout(() => location.reload(), 800);
+      } else {
+        showToast(data.error || 'Error al generar', 'error');
+      }
+      this.generatingAll = false;
+    },
+    async deleteProject() {
+      if (!confirm('¿Eliminar este proyecto? Se perderá todo el documento generado.')) return;
+      const data = await apiCall(`/projects/${projectId}/delete`);
+      if (data.ok) window.location.href = '/';
+    }
+  }
+}
+
+function sectionCard(projectId, sectionId, initialStatus) {
+  return {
+    status: initialStatus,
+    expanded: false,
+    generating: false,
+    async generate() {
+      this.generating = true;
+      this.expanded = true;
+      const data = await apiCall(`/projects/${projectId}/sections/${sectionId}/generate`);
+      if (data.ok) {
+        this.status = 'generated';
+        showToast('Sección generada');
+        setTimeout(() => location.reload(), 600);
+      } else {
+        showToast(data.error || 'Error al generar', 'error');
+      }
+      this.generating = false;
+    },
+    async saveContent() {
+      const content = this.$refs.editor.value;
+      const fd = new FormData();
+      fd.append('content', content);
+      const data = await apiCall(`/projects/${projectId}/sections/${sectionId}/update`, 'POST', fd);
+      if (data.ok) showToast('Contenido guardado');
+      else showToast('Error al guardar', 'error');
+    },
+    async approve() {
+      const data = await apiCall(`/projects/${projectId}/sections/${sectionId}/approve`);
+      if (data.ok) {
+        this.status = 'approved';
+        showToast('Sección aprobada');
+      } else {
+        showToast('Error al aprobar', 'error');
+      }
+    }
+  }
+}
+</script>
+{% endblock %}
