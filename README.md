@@ -11,7 +11,7 @@ Upload a template, point to your codebase, and let the model fill in every secti
 [![Docker](https://img.shields.io/badge/Docker-required-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
 [![HTMX](https://img.shields.io/badge/HTMX-2.0-3D72D7?style=flat-square)](https://htmx.org)
 [![Vibe Coded](https://img.shields.io/badge/vibe%20coded-Claude%20Sonnet-blueviolet?style=flat-square)](https://anthropic.com)
-[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square)](LICENSE)
 
 </div>
 
@@ -158,4 +158,4 @@ All data (database, uploaded templates, generated outputs) is stored in the `dat
 
 ## License
 
-MIT — free for personal and commercial use.
+AGPL-3.0 — see [LICENSE](LICENSE) for details.
